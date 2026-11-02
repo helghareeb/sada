@@ -1,6 +1,6 @@
 {
   "name": "@sada/core",
-  "version": "1.1.0",
+  "version": "1.2.0",
   "description": "Environment-agnostic transcription pipeline for Sada (clip planning, Wit.ai request/parse, timeline stitching, subtitle generation).",
   "license": "MIT",
   "type": "module",

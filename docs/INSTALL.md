@@ -18,15 +18,15 @@ Take one file:
 
 | Your computer | Download this | Size |
 |---|---|---|
-| 🪟 **Windows** | `Sada-Setup-1.1.0.exe` | ~110 MB |
-| 🪟 Windows, no install (USB stick) | `Sada-Portable-1.1.0.exe` | ~110 MB |
-| 🍎 **Mac — M1/M2/M3/M4** | `Sada-1.1.0-mac-arm64.dmg` | ~115 MB |
-| 🍎 **Mac — older Intel** | `Sada-1.1.0-mac-x64.dmg` | ~115 MB |
-| 🐧 **Ubuntu / Mint / Debian** | `Sada-1.1.0-amd64.deb` | ~110 MB |
-| 🐧 **Fedora / openSUSE** | `Sada-1.1.0-x86_64.rpm` | ~110 MB |
-| 🐧 Any other Linux | `Sada-1.1.0-x86_64.AppImage` | ~155 MB |
+| 🪟 **Windows** | `Sada-Setup-1.2.0.exe` | ~110 MB |
+| 🪟 Windows, no install (USB stick) | `Sada-Portable-1.2.0.exe` | ~110 MB |
+| 🍎 **Mac — M1/M2/M3/M4** | `Sada-1.2.0-mac-arm64.dmg` | ~115 MB |
+| 🍎 **Mac — older Intel** | `Sada-1.2.0-mac-x64.dmg` | ~115 MB |
+| 🐧 **Ubuntu / Mint / Debian** | `Sada-1.2.0-amd64.deb` | ~110 MB |
+| 🐧 **Fedora / openSUSE** | `Sada-1.2.0-x86_64.rpm` | ~110 MB |
+| 🐧 Any other Linux | `Sada-1.2.0-x86_64.AppImage` | ~155 MB |
 
-*(`1.1.0` is the version number — it changes with each release.)*
+*(`1.2.0` is the version number — it changes with each release.)*
 
 > 🍎 **Not sure which Mac you have?** Click the  menu (top-left) → **About This
 > Mac**. If it says **Apple M1/M2/M3/M4**, take `arm64`. If it says **Intel**,
@@ -38,7 +38,7 @@ Take one file:
 
 ### 🪟 Windows
 
-1. Double-click **`Sada-Setup-1.1.0.exe`**.
+1. Double-click **`Sada-Setup-1.2.0.exe`**.
 2. Choose your language — **العربية** or **English**. 🌍
 3. **You will see a blue warning: "Windows protected your PC."** This is
    expected. Click **More info**, then **Run anyway**.
@@ -86,13 +86,13 @@ Double-click the file and your software centre will install it. Or, in a
 terminal:
 
 ```bash
-sudo apt install ./Sada-1.1.0-amd64.deb
+sudo apt install ./Sada-1.2.0-amd64.deb
 ```
 
 **Fedora, openSUSE, RHEL — use the `.rpm`:**
 
 ```bash
-sudo dnf install ./Sada-1.1.0-x86_64.rpm
+sudo dnf install ./Sada-1.2.0-x86_64.rpm
 ```
 
 Either way, Sada appears in your applications menu (as **صدى** if your desktop
@@ -101,8 +101,8 @@ is in Arabic 🌍). Everything it needs is installed with it.
 **Any other distribution — use the `.AppImage`:**
 
 ```bash
-chmod +x Sada-1.1.0-x86_64.AppImage
-./Sada-1.1.0-x86_64.AppImage
+chmod +x Sada-1.2.0-x86_64.AppImage
+./Sada-1.2.0-x86_64.AppImage
 ```
 
 > 💡 On Ubuntu 22.04 and newer, AppImages need one library that is no longer

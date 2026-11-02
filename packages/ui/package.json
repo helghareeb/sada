@@ -1,6 +1,6 @@
 {
   "name": "@sada/ui",
-  "version": "1.1.0",
+  "version": "1.2.0",
   "private": true,
   "description": "Shared React UI for Sada — consumed by both the desktop and web apps through the window.sada bridge contract.",
   "license": "MIT",
