@@ -32,6 +32,8 @@ export default function ContextWrapper(props) {
   const [apiKey, setApiKey] = useState(() => persisted("apiKey", ""));
   const [interfaceLanguage, setInterfaceLanguage] = useState(() => persisted("interfaceLanguage", "ar"));
   const [outputDirectory, setOutputDirectory] = useState(() => persisted("outputDirectory", ""));
+  const [inputDirectory, setInputDirectory] = useState(() => persisted("inputDirectory", ""));
+  const [tmpDirectory, setTmpDirectory] = useState(() => persisted("tmpDirectory", ""));
 
   const resetStats = () => {
     setCurrentClip(0);
@@ -58,9 +60,11 @@ export default function ContextWrapper(props) {
       document.documentElement.dir = interfaceLanguage === "en" ? "ltr" : "rtl";
     }
     localStorage.setItem("outputDirectory", JSON.stringify(outputDirectory));
+    localStorage.setItem("inputDirectory", JSON.stringify(inputDirectory));
+    localStorage.setItem("tmpDirectory", JSON.stringify(tmpDirectory));
     localStorage.setItem("apiKey", JSON.stringify(apiKey));
     localStorage.setItem("theme", JSON.stringify(theme));
-  }, [speechLanguage, conversionEngine, apiKey, interfaceLanguage, outputDirectory, theme]);
+  }, [speechLanguage, conversionEngine, apiKey, interfaceLanguage, outputDirectory, inputDirectory, tmpDirectory, theme]);
 
   useEffect(() => {
     setTotalFiles(filesToProcess.length);
@@ -81,6 +85,8 @@ export default function ContextWrapper(props) {
         apiKey, setApiKey,
         interfaceLanguage, setInterfaceLanguage,
         outputDirectory, setOutputDirectory,
+        inputDirectory, setInputDirectory,
+        tmpDirectory, setTmpDirectory,
         conversionEngine, setConversionEngine,
         processStarted, setProcessStarted,
         resetStats,

@@ -13,6 +13,8 @@ import {
   faClose,
   faKey,
   faFolder,
+  faFolderOpen,
+  faRotateLeft,
   faStop,
   faMinus,
   faCircleInfo,
@@ -28,7 +30,6 @@ import loc from "./localization";
 import Context from "./Context/Context";
 import { bridge } from "./bridge";
 import textToSpeechImg from "./assets/text-to-speech.png";
-import splashImg from "./assets/splash.png";
 
 const WIT_URL = "https://wit.ai";
 
@@ -236,12 +237,40 @@ const WelcomeModal = ({ onClose, onOpenHelp }) => {
   );
 };
 
+/** One folder setting: label, pick button, reset-to-default, current path. */
+const FolderSetting = ({ label, value, placeholder, onChoose, onReset }) => (
+  <div className="mb-2">
+    <div className="text-start my-1">
+      <span className="mx-1">{label}</span>
+      <button className="btn btn-ghost btn-xs mx-1 rounded-lg" onClick={onChoose} title={label}>
+        <FontAwesomeIcon icon={faFolder} fixedWidth className="text-warning" />
+      </button>
+      {value && (
+        <button className="btn btn-ghost btn-xs rounded-lg" onClick={onReset} title={loc.use_default}>
+          <FontAwesomeIcon icon={faRotateLeft} fixedWidth />
+        </button>
+      )}
+    </div>
+    <input
+      type="text"
+      value={value}
+      disabled
+      dir={value ? "ltr" : undefined}
+      placeholder={placeholder}
+      className="input input-bordered w-full max-w-xs text-xs"
+    />
+    <hr />
+  </div>
+);
+
 const SettingsModal = ({ toggleModal, appInfo }) => {
   const {
     speechLanguage, setSpeechLanguage,
     apiKey, setApiKey,
     interfaceLanguage, setInterfaceLanguage,
     outputDirectory, setOutputDirectory,
+    inputDirectory, setInputDirectory,
+    tmpDirectory, setTmpDirectory,
     conversionEngine, setConversionEngine,
     setTheme, theme,
   } = useContext(Context);
@@ -250,6 +279,14 @@ const SettingsModal = ({ toggleModal, appInfo }) => {
   const chooseDir = async () => {
     const dir = await bridge.chooseOutputDir();
     if (dir) setOutputDirectory(dir);
+  };
+  const chooseInputDir = async () => {
+    const dir = await bridge.chooseFolder?.({ title: loc.choose_input_directory, defaultPath: inputDirectory });
+    if (dir) setInputDirectory(dir);
+  };
+  const chooseTmpDir = async () => {
+    const dir = await bridge.chooseFolder?.({ title: loc.choose_temp_directory, defaultPath: tmpDirectory });
+    if (dir) setTmpDirectory(dir);
   };
 
   return (
@@ -312,22 +349,33 @@ const SettingsModal = ({ toggleModal, appInfo }) => {
           <hr />
         </div>
 
-        <div className="mb-2">
-          <div className="text-start my-1">
-            <span className="mx-1">{loc.choose_output_directory}</span>
-            <button className="btn btn-ghost btn-xs mx-2 rounded-lg" onClick={chooseDir}>
-              <FontAwesomeIcon icon={faFolder} fixedWidth className="text-warning" />
-            </button>
-          </div>
-          <input
-            type="text"
-            value={outputDirectory}
-            disabled
-            placeholder={appInfo?.defaultOutputDir || "output"}
-            className="input input-bordered w-full max-w-xs"
+        {bridge.isDesktop && (
+          <FolderSetting
+            label={loc.choose_input_directory}
+            value={inputDirectory}
+            placeholder={loc.input_directory_hint}
+            onChoose={chooseInputDir}
+            onReset={() => setInputDirectory("")}
           />
-          <hr />
-        </div>
+        )}
+
+        <FolderSetting
+          label={loc.choose_output_directory}
+          value={outputDirectory}
+          placeholder={appInfo?.defaultOutputDir || "output"}
+          onChoose={chooseDir}
+          onReset={() => setOutputDirectory("")}
+        />
+
+        {bridge.isDesktop && (
+          <FolderSetting
+            label={loc.choose_temp_directory}
+            value={tmpDirectory}
+            placeholder={appInfo?.defaultTmpDir || "temp"}
+            onChoose={chooseTmpDir}
+            onReset={() => setTmpDirectory("")}
+          />
+        )}
 
         <div className="mb-2">
           <div className="text-start my-1 flex items-center justify-between">
@@ -397,8 +445,10 @@ const LoadingModal = () => (
 );
 
 function MyDropzone() {
-  const { filesToProcess, setFilesToProcess, setLoading, outputDirectory, setError } =
-    useContext(Context);
+  const {
+    filesToProcess, setFilesToProcess, setLoading, outputDirectory, setError,
+    inputDirectory, setInputDirectory,
+  } = useContext(Context);
 
   const addFiles = (files) => {
     setFilesToProcess((prev) => {
@@ -433,6 +483,26 @@ function MyDropzone() {
     handleNewFiles(files);
   };
 
+  // A whole folder, in natural order. New files go to the top of the list, so
+  // reverse to keep the folder's own order reading top to bottom.
+  const pickFolder = async () => {
+    const res = await bridge.pickFolder?.({ defaultPath: inputDirectory });
+    if (!res) return;
+    if (res.dir) setInputDirectory(res.dir);
+    if (!res.files.length) {
+      if (res.dir) setError(loc.no_media_in_folder);
+      return;
+    }
+    handleNewFiles([...res.files].reverse());
+  };
+
+  const addFolderButton = bridge.pickFolder ? (
+    <button className="btn btn-success btn-sm btn-outline rounded-lg ms-2" onClick={pickFolder}>
+      <FontAwesomeIcon icon={faFolderOpen} fixedWidth size="lg" />
+      <span>{loc.add_folder}</span>
+    </button>
+  ) : null;
+
   // Deliberately no `accept`: react-dropzone would silently swallow anything
   // outside the list, and an extension is not evidence about a file's contents.
   // FFmpeg probes the bytes and is the only thing entitled to reject an input,
@@ -461,6 +531,7 @@ function MyDropzone() {
               <FontAwesomeIcon icon={faAdd} fixedWidth size="lg" />
               <span>{loc.add}</span>
             </button>
+            {addFolderButton}
             <button className="btn btn-success btn-sm btn-outline rounded-lg mx-2" onClick={openOutputDir}>
               <FontAwesomeIcon icon={faFolder} fixedWidth size="lg" />
               <span>{loc.open_out_dir}</span>
@@ -497,6 +568,7 @@ function MyDropzone() {
                   <FontAwesomeIcon icon={faAdd} fixedWidth size="lg" />
                   <span>{loc.add}</span>
                 </button>
+                {addFolderButton}
                 <button className="btn btn-success btn-sm btn-outline rounded-lg mx-2" onClick={openOutputDir}>
                   <FontAwesomeIcon icon={faFolder} fixedWidth size="lg" />
                   <span>{loc.open_out_dir}</span>
@@ -514,7 +586,7 @@ const ProcessStats = () => {
   const {
     setProcessStarted, processStarted, totalFiles, numApiRequests,
     filesToProcess, outputDirectory, timePerClip, totalClipsInFile,
-    apiKey, setError, setNumApiRequests,
+    apiKey, setError, setNumApiRequests, tmpDirectory,
   } = useContext(Context);
 
   const start = () => {
@@ -522,7 +594,7 @@ const ProcessStats = () => {
     if (!apiKey || apiKey === "null") return setError(loc.pleaseEnterApiKey);
     setNumApiRequests(0);
     setProcessStarted(true);
-    bridge.start({ files: filesToProcess, token: apiKey, outputDir: outputDirectory });
+    bridge.start({ files: filesToProcess, token: apiKey, outputDir: outputDirectory, tmpDir: tmpDirectory });
   };
   const stop = () => {
     setProcessStarted(false);
@@ -640,10 +712,32 @@ const FileStats = () => {
   );
 };
 
+/** Sound-wave mark: seven bars, as on the app icon. */
+const WaveMark = () => (
+  <svg width="56" height="56" viewBox="0 0 56 56" aria-hidden="true">
+    <circle cx="28" cy="28" r="28" fill="#5ec4a0" opacity="0.12" />
+    {[10, 20, 30, 38, 30, 20, 10].map((h, i) => (
+      <rect key={i} x={12.7 + i * 5} y={28 - h / 2} width="2.6" height={h} rx="1.3" fill="#5ec4a0" />
+    ))}
+  </svg>
+);
+
+/** Drawn as text rather than an image so it carries the app's own name
+ * (the old splash.png still read "المفرغ") and follows the interface language. */
 const SplashScreen = () => (
   <div className="App justify-center items-center flex">
-    <div className="card w-full h-full">
-      <img src={splashImg} width="480" height="250" alt="Sada" />
+    <div
+      className="flex flex-col items-center justify-center gap-1 rounded-2xl"
+      style={{ width: 480, height: 250, background: "#eeeeee", color: "#111" }}
+    >
+      <WaveMark />
+      <div style={{ fontSize: 72, fontWeight: 700, lineHeight: 1.15 }} lang="ar" dir="rtl">
+        صدى
+      </div>
+      <div style={{ fontSize: 14, letterSpacing: 5, opacity: 0.55 }} lang="en" dir="ltr">
+        SADA
+      </div>
+      <div style={{ fontSize: 18 }}>{loc.tagline}</div>
     </div>
   </div>
 );

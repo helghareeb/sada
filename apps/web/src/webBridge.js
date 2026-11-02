@@ -1,4 +1,4 @@
-import { createPipeline, WEB_INPUT_ACCEPT } from "@sada/core";
+import { createPipeline, WEB_INPUT_ACCEPT, isProbablyMedia } from "@sada/core";
 import { createWebPorts } from "./ports.web";
 import { audioDuration } from "./media";
 
@@ -42,6 +42,23 @@ export const webBridge = {
     });
   },
 
+  // A browser folder pick: the whole folder is read in, media files only.
+  pickFolder() {
+    return new Promise((resolve) => {
+      const input = document.createElement("input");
+      input.type = "file";
+      input.webkitdirectory = true;
+      input.onchange = () => {
+        const files = Array.from(input.files || [])
+          .filter((f) => isProbablyMedia(f.name))
+          .sort((a, b) => a.name.localeCompare(b.name, undefined, { numeric: true }))
+          .map((f) => ({ name: f.name, path: register(f) }));
+        resolve({ dir: null, files });
+      };
+      input.click();
+    });
+  },
+
   getPathForFile(file) {
     return register(file);
   },
@@ -63,6 +80,10 @@ export const webBridge = {
       out.push({ ...f, duration, mediaError: "" });
     }
     return out;
+  },
+
+  async chooseFolder() {
+    return null; // No folder settings in the browser.
   },
 
   async chooseOutputDir() {

@@ -77,7 +77,15 @@ export function createDesktopPorts({ token, outputDir, tmpDir, sendProgress }) {
 
   const chunker = {
     async chunk(source, plan, onClip) {
+      // The previous file's clips are no longer needed. Without this a batch
+      // kept every clip of every file until the run ended, so a long batch
+      // (hundreds of hour-long files) filled the disk part way through and
+      // every later file failed as "could not be read as audio or video".
+      cleanTmp(tmpDir);
+      ensureFreeSpace(tmpDir, plan);
+
       const clips = [];
+      let firstError = null;
       for (const clipPlan of plan) {
         const output = path.join(tmpDir, `track-${clipPlan.index}.mp3`);
         try {
@@ -92,7 +100,13 @@ export function createDesktopPorts({ token, outputDir, tmpDir, sendProgress }) {
         } catch (err) {
           // Skip a clip that failed to extract rather than aborting the file.
           console.error("clip extract failed", output, err);
+          firstError = firstError || err;
         }
+      }
+      // Not one clip could be cut: say why (a full disk, a missing temp
+      // folder) instead of finishing the file with an empty subtitle.
+      if (plan.length && !clips.length && firstError) {
+        throw new Error(`Could not cut clips into the temp folder "${tmpDir}": ${firstError.message || firstError}`);
       }
       return clips;
     },
@@ -125,6 +139,33 @@ export function createDesktopPorts({ token, outputDir, tmpDir, sendProgress }) {
   };
 
   return { duration, chunker, transcriber, writer, reporter };
+}
+
+/** Roughly what one 18-second clip costs on disk (mp3 at FFmpeg's default rate). */
+const CLIP_BYTES_ESTIMATE = 350 * 1024;
+const FREE_SPACE_MARGIN = 200 * 1024 * 1024;
+
+/**
+ * Stop the run with a clear message when the temp folder's disk cannot hold
+ * this file's clips, instead of letting FFmpeg fail in ways that look like a
+ * bad input file.
+ */
+export function ensureFreeSpace(tmpDir, plan) {
+  let free;
+  try {
+    const st = fs.statfsSync(tmpDir);
+    free = st.bavail * st.bsize;
+  } catch {
+    return; // statfs unavailable: FFmpeg will report its own error
+  }
+  const need = plan.length * CLIP_BYTES_ESTIMATE + FREE_SPACE_MARGIN;
+  if (free < need) {
+    const mb = (n) => Math.ceil(n / (1024 * 1024));
+    throw new Error(
+      `Not enough free disk space in the temp folder "${tmpDir}": about ${mb(need)} MB needed, ${mb(free)} MB free. ` +
+        "Free some space, or choose a temp folder on another drive in Settings."
+    );
+  }
 }
 
 export function cleanTmp(tmpDir) {
