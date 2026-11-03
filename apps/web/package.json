@@ -1,6 +1,6 @@
 {
   "name": "@sada/web",
-  "version": "1.1.0",
+  "version": "1.2.0",
   "description": "Sada web app — in-browser audio-to-subtitle transcription (ffmpeg.wasm + Wit.ai via proxy).",
   "license": "MIT",
   "type": "module",

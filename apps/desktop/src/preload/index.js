@@ -24,6 +24,10 @@ const bridge = {
   },
   getDurations: (files) => ipcRenderer.invoke("audio:getDurations", files),
   chooseOutputDir: () => ipcRenderer.invoke("dialog:chooseOutputDir"),
+  // Settings folders (input / temp): resolves to a path or null.
+  chooseFolder: (opts) => ipcRenderer.invoke("dialog:chooseFolder", opts),
+  // Every media file in one folder: resolves to { dir, files: [{ name, path }] }.
+  pickFolder: (opts) => ipcRenderer.invoke("dialog:pickFolder", opts),
 
   // Shell / window
   openOutputDir: (dir) => ipcRenderer.send("shell:openOutputDir", dir),

@@ -34,7 +34,7 @@ body:
     attributes:
       label: Sada version · إصدار صدى
       description: Shown in Settings · مذكور في الإعدادات
-      placeholder: "1.1.0"
+      placeholder: "1.2.0"
 
   - type: input
     id: file

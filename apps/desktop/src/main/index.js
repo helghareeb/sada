@@ -1,7 +1,7 @@
 import path from "path";
 import fs from "fs";
 import { app, BrowserWindow, ipcMain, dialog, shell } from "electron";
-import { createPipeline, ELECTRON_FILE_FILTERS } from "@sada/core";
+import { createPipeline, ELECTRON_FILE_FILTERS, isProbablyMedia } from "@sada/core";
 import { createDesktopPorts, cleanTmp, getDurationSeconds } from "./ports";
 
 const isDev = !app.isPackaged;
@@ -14,6 +14,20 @@ const logsDir = path.join(app.getPath("userData"), "logs");
 for (const dir of [defaultOutputDir, tmpDir, logsDir]) {
   fs.mkdirSync(dir, { recursive: true });
 }
+
+/** The temp folder chosen in Settings, or the default. Clip mp3s are cut here,
+ * so on a small system drive the user can point it at a larger disk. Clips go
+ * in a "sada-tmp" subfolder: cleanup deletes *.mp3, and must never touch the
+ * user's own files in the folder they picked. */
+function resolveTmpDir(chosen) {
+  if (typeof chosen === "string" && chosen.trim() !== "") {
+    return path.join(chosen.trim(), "sada-tmp");
+  }
+  return tmpDir;
+}
+
+/** Natural order for folder listings: "2.mp3" before "10.mp3". */
+const naturalCompare = new Intl.Collator(undefined, { numeric: true, sensitivity: "base" }).compare;
 
 /** Repointed from the original Telegram link to the open-source project. */
 const PROJECT_URL = "https://github.com/helghareeb/sada";
@@ -101,6 +115,44 @@ ipcMain.handle("dialog:chooseOutputDir", async () => {
   return result.filePaths[0] || null;
 });
 
+// A folder for the Settings rows (input / temp). Returns the path or null.
+ipcMain.handle("dialog:chooseFolder", async (_e, opts) => {
+  const result = await dialog.showOpenDialog(win, {
+    title: opts?.title || "Choose folder",
+    defaultPath: opts?.defaultPath || undefined,
+    properties: ["openDirectory", "createDirectory"],
+  });
+  if (result.canceled) return null;
+  return result.filePaths[0] || null;
+});
+
+// Add every media file directly inside a folder, in natural order
+// (2 before 10), so a numbered series queues in reading order. Sidecar files
+// (.json, .csv, .txt) sit next to the audio in most collections; only names
+// with a media extension are taken here — a file picked one by one is still
+// never gated by its extension.
+ipcMain.handle("dialog:pickFolder", async (_e, opts) => {
+  const result = await dialog.showOpenDialog(win, {
+    title: "Select a folder of audio or video files",
+    buttonLabel: "Select",
+    defaultPath: opts?.defaultPath || undefined,
+    properties: ["openDirectory"],
+  });
+  if (result.canceled || !result.filePaths[0]) return { dir: null, files: [] };
+  const dir = result.filePaths[0];
+  let names = [];
+  try {
+    names = fs
+      .readdirSync(dir, { withFileTypes: true })
+      .filter((d) => d.isFile() && isProbablyMedia(d.name))
+      .map((d) => d.name)
+      .sort(naturalCompare);
+  } catch (err) {
+    logError(err);
+  }
+  return { dir, files: names.map((name) => ({ name, path: path.join(dir, name) })) };
+});
+
 // Compute durations for a list of { name, path }.
 ipcMain.handle("audio:getDurations", async (_e, files) => {
   const ports = createDesktopPorts({ token: "", outputDir: defaultOutputDir, tmpDir, sendProgress: () => {} });
@@ -124,13 +176,23 @@ ipcMain.handle("audio:getDurations", async (_e, files) => {
 
 // ---- IPC: transcription lifecycle ----------------------------------------
 ipcMain.on("transcribe:start", async (_e, payload) => {
-  const { files, token, outputDir } = payload || {};
+  const { files, token, outputDir, tmpDir: chosenTmpDir } = payload || {};
   const effectiveOutputDir = outputDir && outputDir !== "" ? outputDir : defaultOutputDir;
+  const runTmpDir = resolveTmpDir(chosenTmpDir);
 
-  cleanTmp(tmpDir);
+  cleanTmp(runTmpDir);
   const sendProgress = (event, data) => win?.webContents.send("progress", { event, payload: data });
 
-  const ports = createDesktopPorts({ token, outputDir: effectiveOutputDir, tmpDir, sendProgress });
+  let ports;
+  try {
+    ports = createDesktopPorts({ token, outputDir: effectiveOutputDir, tmpDir: runTmpDir, sendProgress });
+  } catch (err) {
+    // An unwritable output or temp folder (unplugged drive, no permission).
+    logError(err);
+    sendProgress("error", "Error: " + (err?.message || err));
+    sendProgress("processComplete");
+    return;
+  }
   pipeline = createPipeline(ports);
 
   const inputs = (files || []).map((f) => ({ name: f.name, source: f.path }));
@@ -141,7 +203,7 @@ ipcMain.on("transcribe:start", async (_e, payload) => {
     sendProgress("error", "Error: " + (err?.message || err));
     sendProgress("processComplete");
   } finally {
-    cleanTmp(tmpDir);
+    cleanTmp(runTmpDir);
     pipeline = null;
   }
 });
@@ -154,5 +216,6 @@ ipcMain.handle("app:info", () => ({
   version: app.getVersion(),
   projectUrl: PROJECT_URL,
   defaultOutputDir,
+  defaultTmpDir: tmpDir,
   platform: process.platform,
 }));
